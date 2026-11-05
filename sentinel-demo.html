@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SENTINEL – Interactive Demo</title>
+<style>
+:root{--bg:#f4f1ea;--card:#fbf9f4;--ink:#14302a;--mut:#5b6b66;--brand:#194d40;--acc:#b07a1f;--bad:#b3261e;--line:#d9d4c7;--on:#fff;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#101a17;--card:#1a2823;--ink:#e9efec;--mut:#9fb0aa;--brand:#5fb59d;--acc:#e0b05a;--bad:#ff8a80;--line:#2c3b36;--on:#0b1512}}
+:root[data-theme="dark"]{--bg:#101a17;--card:#1a2823;--ink:#e9efec;--mut:#9fb0aa;--brand:#5fb59d;--acc:#e0b05a;--bad:#ff8a80;--line:#2c3b36;--on:#0b1512}
+*{box-sizing:border-box}html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,-apple-system,Segoe UI,Arial,sans-serif}
+header{padding:18px 20px;border-bottom:1px solid var(--line)}header h1{margin:0;font:700 24px Georgia,serif;letter-spacing:.14em}header p{margin:2px 0 0;color:var(--mut);font-size:14px}
+main{max-width:920px;margin:auto;padding:0 16px 48px}
+.note{border-left:4px solid var(--acc);background:var(--card);padding:10px 14px;border-radius:8px;margin:14px 0;font-size:14px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin:14px 0}
+.kpi,.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px}
+.kpi b{display:block;font:700 28px Georgia,serif;color:var(--brand)}.kpi span{color:var(--mut);font-size:13px}
+nav{display:flex;gap:6px;margin:12px 0}nav button{flex:1}
+button{font:inherit;padding:9px 14px;border-radius:8px;border:1px solid var(--brand);background:var(--brand);color:var(--on);cursor:pointer}
+button.sec{background:transparent;color:var(--brand)}button.bad{background:var(--bad);border-color:var(--bad);color:#fff}
+nav button:not(.on){background:transparent;color:var(--brand)}
+textarea,input{width:100%;font:inherit;padding:9px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--ink)}textarea{min-height:110px}
+table{width:100%;border-collapse:collapse;font-size:14px}td,th{padding:6px 4px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+.scroll{overflow-x:auto}.pill{display:inline-block;padding:1px 10px;border-radius:99px;font-size:12px;background:var(--line)}.pill.hi{background:var(--acc);color:#fff}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px}.mut{color:var(--mut)}ul{margin:6px 0;padding-left:20px}
+[hidden]{display:none}
+</style></head><body>
+<header><h1>SENTINEL</h1><p>National GBVF Prevention, Case Tracking &amp; Forensic Intelligence System · interactive demo</p></header>
+<main>
+<div class="note">Browser demo of SENTINEL’s workflow on <b>synthetic data only</b>. Here a simple rule-based extractor stands in for Llama; the full prototype runs Llama (via Ollama or PyTorch) and PyTorch embeddings on a local server. Nothing you type leaves this page.</div>
+<div class="kpis" id="kpis"></div>
+<nav><button id="t1" class="on">1 · AI intake</button><button id="t2">2 · Leads</button><button id="t3">3 · Registry</button></nav>
+
+<section id="p1" class="card">
+<h3 style="margin-top:0">Report intake</h3>
+<p class="mut">Paste a report (English or a few isiZulu/Sesotho keywords). The system extracts fields; a person confirms before anything is saved.</p>
+<textarea id="txt">Zanele Mthembu, 26, was last seen near Bree Taxi Rank in Johannesburg on 2 October wearing a red hoodie and black leggings. She is about 1.65m tall. Butterfly tattoo on her left wrist.</textarea>
+<div class="row"><button id="ext">Extract fields</button></div>
+<div id="out" class="scroll"></div>
+</section>
+
+<section id="p2" hidden>
+<div class="note"><b>Leads are not identifications.</b> They are ranked suggestions for trained staff to verify. Every review needs a written basis (10+ characters).</div>
+<div class="row"><button id="run">Run matching</button><span class="mut" id="runmsg"></span></div>
+<div id="leads"></div>
+</section>
+
+<section id="p3" class="card" hidden><h3 style="margin-top:0">Registry (synthetic)</h3><div class="scroll" id="reg"></div></section>
+</main>
+<script>
+const $=s=>document.querySelector(s);
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+let missing=[
+{ref:'MP-0001',name:'Nomvula Dlamini',age:24,sex:'female',h:165,town:'Johannesburg',prov:'Gauteng',ago:20,desc:'red hoodie, black leggings, white sneakers, butterfly tattoo on left wrist, small scar above right eyebrow'},
+{ref:'MP-0002',name:'Palesa Mokoena',age:17,sex:'female',h:158,town:'Mahikeng',prov:'North West',ago:31,desc:'school blazer, grey skirt, gap between front teeth, pierced nose'},
+{ref:'MP-0003',name:'Sizwe Khumalo',age:41,sex:'male',h:180,town:'Durban',prov:'KwaZulu-Natal',ago:45,desc:'blue overalls, work boots, scar on left forearm'}];
+const unid=[
+{ref:'UP-0001',sex:'female',lo:22,hi:28,h:167,town:'Johannesburg',prov:'Gauteng',ago:9,desc:'red hooded top, black leggings, butterfly tattoo on left wrist'},
+{ref:'UP-0002',sex:'female',lo:15,hi:20,h:160,town:'Rustenburg',prov:'North West',ago:14,desc:'grey skirt, navy blazer, nose piercing'},
+{ref:'UP-0003',sex:'male',lo:38,hi:48,h:178,town:'Pietermaritzburg',prov:'KwaZulu-Natal',ago:30,desc:'blue work overalls, long scar on left forearm'},
+{ref:'UP-0004',sex:'female',lo:45,hi:60,h:160,town:'Cape Town',prov:'Western Cape',ago:5,desc:'floral dress, gold tooth'},
+{ref:'UP-0005',sex:'male',lo:20,hi:30,h:175,town:'Polokwane',prov:'Limpopo',ago:12,desc:'yellow rain jacket'}];
+let leads=[];
+const TOWNS={johannesburg:'Gauteng',soweto:'Gauteng',pretoria:'Gauteng',durban:'KwaZulu-Natal',pietermaritzburg:'KwaZulu-Natal','cape town':'Western Cape',mahikeng:'North West',rustenburg:'North West',polokwane:'Limpopo',bloemfontein:'Free State',mbombela:'Mpumalanga',gqeberha:'Eastern Cape'};
+function render(){
+ const pend=leads.filter(l=>l.status==='pending').length,done=leads.length-pend;
+ $('#kpis').innerHTML=[['Open missing',missing.length],['Unidentified',unid.length],['Leads awaiting review',pend],['Leads reviewed',done]].map(([k,v])=>`<div class="kpi"><b>${v}</b><span>${k}</span></div>`).join('');
+ $('#reg').innerHTML='<table><tr><th>Ref</th><th>Person</th><th>Age</th><th>Place</th><th>Description</th></tr>'+missing.map(m=>`<tr><td>${m.ref}</td><td>${esc(m.name)}</td><td>${m.age??'–'}</td><td>${esc(m.town||'')}</td><td>${esc(m.desc||'')}</td></tr>`).join('')+unid.map(u=>`<tr><td>${u.ref}</td><td class="mut">unidentified</td><td>${u.lo}-${u.hi}</td><td>${esc(u.town)}</td><td>${esc(u.desc)}</td></tr>`).join('')+'</table>';
+ $('#leads').innerHTML=leads.map((l,i)=>`<div class="card" style="margin:10px 0"><div class="row" style="margin:0"><b>${l.m.ref} ↔ ${l.u.ref}</b><span class="pill hi">score ${l.score.toFixed(2)}</span><span class="pill">${l.status.replace('_',' ')}</span></div><ul>${l.reasons.map(r=>`<li>${esc(r)}</li>`).join('')}</ul>${l.status==='pending'?`<div class="row"><input id="b${i}" placeholder="Verification basis (required)" style="flex:1;min-width:200px"><button onclick="rev(${i},'follow_up_approved')">Approve follow-up</button><button class="bad" onclick="rev(${i},'rejected')">Reject</button></div>`:`<p class="mut">${esc(l.basis)}</p>`}</div>`).join('')||'<p class="mut">No leads yet. Press “Run matching”.</p>';
+}
+function grams(s){const m={};s=' '+s.toLowerCase()+' ';for(let i=0;i<s.length-2;i++){const g=s.slice(i,i+3);m[g]=(m[g]||0)+1}return m}
+function cos(a,b){let d=0,x=0,y=0;for(const k in a){x+=a[k]*a[k];if(b[k])d+=a[k]*b[k]}for(const k in b)y+=b[k]*b[k];return x&&y?d/Math.sqrt(x*y):0}
+function score(m,u){const p={},W={age:.2,h:.15,text:.35,loc:.2,sex:.1},r=[];
+ if(m.sex&&u.sex){if(m.sex!==u.sex)return null;p.sex=1;r.push('Recorded sex is consistent')}
+ if(m.ago!=null&&u.ago>m.ago)return null; if(m.ago!=null)r.push(`Found ${m.ago-u.ago} days after last seen`);
+ if(m.age!=null){const g=m.age>=u.lo&&m.age<=u.hi?0:Math.min(Math.abs(m.age-u.lo),Math.abs(m.age-u.hi));if(g>8)return null;p.age=1-g/8;r.push(`Age ${m.age} vs estimated ${u.lo}-${u.hi}`+(g?` (${g} yrs outside)`:' (within range)'))}
+ if(m.h){const d=Math.abs(m.h-u.h);if(d>20)return null;p.h=1-d/20;r.push(`Height ${m.h}cm vs ${u.h}cm`)}
+ if(m.prov){if(m.town===u.town){p.loc=1;r.push(`Same town (${u.town})`)}else if(m.prov===u.prov){p.loc=.5;r.push(`Same province (${u.prov})`)}else{p.loc=0;r.push(`Different province (${m.prov} vs ${u.prov})`)}}
+ if(m.desc&&u.desc){const t=cos(grams(m.desc),grams(u.desc));p.text=t;if(t>=.2)r.push(`Clothing/marks description overlap ${Math.round(t*100)}%`)}
+ const av=Object.keys(p).reduce((s,k)=>s+W[k],0);if(!av)return null;
+ const raw=Object.keys(p).reduce((s,k)=>s+p[k]*W[k],0)/av;return{score:raw*(.6+.4*av),reasons:r}}
+function run(){const have=new Set(leads.map(l=>l.m.ref+l.u.ref));let n=0;
+ missing.forEach(m=>{unid.map(u=>({u,r:score(m,u)})).filter(x=>x.r&&x.r.score>=.5).sort((a,b)=>b.r.score-a.r.score).slice(0,3).forEach(x=>{if(!have.has(m.ref+x.u.ref)){leads.push({m,u:x.u,score:x.r.score,reasons:x.r.reasons,status:'pending',basis:''});n++}})});
+ leads.sort((a,b)=>(a.status==='pending'?0:1)-(b.status==='pending'?0:1)||b.score-a.score);$('#runmsg').textContent=`${n} new lead(s) from ${missing.length} missing × ${unid.length} unidentified records`;render()}
+function rev(i,d){const b=$('#b'+i).value.trim();if(b.length<10){alert('A documented basis (10+ characters) is required for every review.');return}
+ leads[i].status=d;leads[i].basis=`${d==='rejected'?'Rejected':'Follow-up approved'}: ${b} (neither record is marked “identified”)`;render()}
+function extract(t){const low=t.toLowerCase(),d={};
+ let m=t.match(/^\s*([A-Z][\w’'-]+(?:\s+[A-Z][\w’'-]+){1,2})\s*[,(]/)||t.match(/(?:named|called)\s+([A-Z][\w’'-]+(?:\s+[A-Z][\w’'-]+){0,2})/);d.name=m?m[1]:null;
+ m=low.match(/\b(\d{1,3})[\s-]*(?:years|yrs)\b/)||t.match(/^[^,]+,\s*(\d{1,3})\b/);d.age=m?+m[1]:null;
+ d.sex=/\b(she|her|woman|girl|female|umfazi|intombazane|mosadi|ngwanana)\b/.test(low)?'female':/\b(he|his|man|boy|male|indoda|umfana|monna|mosimane)\b/.test(low)?'male':'unknown';
+ m=low.match(/\b(\d{3})\s?cm\b/);let m2=low.match(/\b(1[.,]\d{1,2})\s?m\b/);d.h=m?+m[1]:m2?Math.round(parseFloat(m2[1].replace(',','.'))*100):null;
+ const tw=Object.keys(TOWNS).find(k=>low.includes(k));d.town=tw?tw.replace(/\b\w/g,c=>c.toUpperCase()):null;d.prov=tw?TOWNS[tw]:null;
+ m=t.match(/wearing\s+([^.;]+)/i);const cl=m?m[1].trim():'';
+ const mk=t.split(/[.;]/).filter(s=>/tattoo|scar|birthmark|piercing|missing tooth/i.test(s)).map(s=>s.trim()).join('; ');
+ d.desc=[cl,mk].filter(Boolean).join(', ')||null;d.ago=null;return d}
+$('#ext').onclick=()=>{const d=extract($('#txt').value);window.P=d;
+ $('#out').innerHTML=`<p class="mut">Review and edit before saving. <span class="pill">demo extractor</span></p><table>${[['name','Name'],['age','Age'],['sex','Sex'],['h','Height (cm)'],['town','Town'],['prov','Province'],['desc','Clothing / marks']].map(([k,l])=>`<tr><td>${l}</td><td><input data-k="${k}" value="${esc(d[k])}"></td></tr>`).join('')}</table><div class="row"><button id="save">Confirm &amp; register missing person</button></div>`;
+ $('#save').onclick=()=>{const v={};document.querySelectorAll('#out input').forEach(i=>{const x=i.value.trim();v[i.dataset.k]=x===''?null:(['age','h'].includes(i.dataset.k)?+x:x)});
+  v.ref='MP-'+String(missing.length+1).padStart(4,'0');v.ago=null;missing.push(v);
+  const due=[['Record formal statement from reporter',1],['Circulate details to neighbouring stations and hospitals',1],['Check unidentified-person records for potential leads',2],['Confirm status of any forensic submissions',3]];
+  $('#out').innerHTML=`<div class="note"><b>Registered ${v.ref}</b> and opened a case with default tasks:<ul>${due.map(([t,d])=>`<li>${t} <span class="mut">(due in ${d} day${d>1?'s':''})</span></li>`).join('')}</ul></div>`;render()}};
+function tab(n){['1','2','3'].forEach(i=>{$('#p'+i).hidden=i!==n;$('#t'+i).classList.toggle('on',i===n)})}
+['1','2','3'].forEach(i=>$('#t'+i).onclick=()=>tab(i));$('#run').onclick=run;render();
+</script></body></html>
