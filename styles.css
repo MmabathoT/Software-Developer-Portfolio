@@ -1538,8 +1538,8 @@ button {
 
 :root {
   color-scheme: light;
-  --paper: #fff;
-  --paper-deep: #faf9fe;
+  --paper: #f4f3fa;
+  --paper-deep: #ebeaf5;
   --ink: #202231;
   --ink-soft: #626778;
   --muted: #85899a;
@@ -1551,7 +1551,10 @@ button {
 }
 
 body {
-  background: #fff;
+  background:
+    radial-gradient(ellipse at 12% 18%, rgb(151 54 253 / 5%), transparent 34%),
+    radial-gradient(ellipse at 88% 42%, rgb(22 166 215 / 5%), transparent 36%),
+    var(--paper);
   color: var(--ink);
 }
 
@@ -1567,7 +1570,7 @@ button:focus-visible {
 
 .site-header {
   border-color: #edecf2;
-  background: rgb(255 255 255 / 93%);
+  background: rgb(244 243 250 / 93%);
 }
 
 .brand-mark {
@@ -1596,7 +1599,7 @@ button:focus-visible {
   background:
     radial-gradient(ellipse at 83% 40%, rgb(77 118 230 / 7%), transparent 29%),
     radial-gradient(ellipse at 70% 80%, rgb(154 50 254 / 6%), transparent 31%),
-    #fff;
+    #f8f6ff;
   color: var(--ink);
 }
 
@@ -1822,7 +1825,7 @@ button:focus-visible {
 .projects-section,
 .learning-section {
   border-color: #eeedf2;
-  background: #fff;
+  background: #f7f6fc;
 }
 
 .project-card {
